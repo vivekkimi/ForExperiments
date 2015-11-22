@@ -1,294 +1,241 @@
-import heapq
+import random as rand
 import sys
 
-import numpy as np
+'''
+Useful Function
+'''
 
-#--------------START GLOBAL VARS------------------
-dictionary = {"#": 7, "?": 3, "C": 9, "T": 1, ".": 0}
-direction = ["RIGHT", "UP", "LEFT", "DOWN"]
-
-
-#--------------END GLOBAL VARIABLES----------------
-
-''' A* Algorithm '''
-
-
-class Cell(object):
-    def __init__(self, x, y, reachable):
-        """
-        Initialize new cell
-        @param x cell x coordinate
-        @param y cell y coordinate
-        @param reachable is cell reachable? not a wall?
-        """
-        self.reachable = reachable
-        self.x = x
-        self.y = y
-        self.parent = None
-        self.g = 0
-        self.h = 0
-        self.f = 0
-
-    def __lt__(self, other):
-        if self.f < other.f:
-            return -1
-        elif self.f > other.f:
-            return 1
-        return 0
-
-    def __str__(self):
-        return "Cell(" + str(self.x)+ "," + str(self.y) + "): reachable: " + str(self.reachable)
-
-
-class AStar(object):
-    def __init__(self, max_row, max_col):
-        self.opened = []
-        heapq.heapify(self.opened)
-        self.closed = set()
-        self.cells = []
-        self.grid_height = max_row
-        self.grid_width = max_col
-
-    def init_grid(self, start_row, start_col, end_row, end_col):
-        # debug("init_grid: " + str(locals()))
-        for x in range(self.grid_height):
-            for y in range(self.grid_width):
-                if numpy_map[x][y] == dictionary['#']:
-                    reachable = False
-                else:
-                    reachable = True
-                self.cells.append(Cell(x, y, reachable))
-        self.start = self.get_cell(start_row, start_col)
-        debug("Start cell: " + str(self.start))
-        self.end = self.get_cell(end_row, end_col)
-        debug("End cell: " + str(self.end))
-
-    def get_heuristic(self, cell):
-        """
-        Compute the heuristic value H for a cell: distance between
-        this cell and the ending cell multiply by 10.
-        @param cell
-        @returns heuristic value H
-        """
-        return 10 * (abs(cell.x - self.end.x) + abs(cell.y - self.end.y))
-
-    def get_cell(self, x, y):
-        """
-        Returns a cell from the cells list
-        @param x cell x coordinate
-        @param y cell y coordinate
-        @returns cell
-        """
-        return self.cells[x * self.grid_width + y]
-
-    def get_adjacent_cells(self, cell):
-        """
-        Returns adjacent cells to a cell. Clockwise starting
-        from the one on the right.
-        @param cell get adjacent cells for this cell
-        @returns adjacent cells list
-        """
-        cells = []
-        if cell.x < self.grid_height-1:
-            cells.append(self.get_cell(cell.x+1, cell.y))
-        if cell.y > 0:
-            cells.append(self.get_cell(cell.x, cell.y-1))
-        if cell.x > 0:
-            cells.append(self.get_cell(cell.x-1, cell.y))
-        if cell.y < self.grid_width-1:
-            cells.append(self.get_cell(cell.x, cell.y+1))
-        return cells
-
-    def display_path(self):
-        cell = self.end
-        while cell.parent is not self.start:
-            cell = cell.parent
-            debug('path: cell: %d,%d' % (cell.x, cell.y))
-
-    def update_cell(self, adj, cell):
-        """
-        Update adjacent cell
-        @param adj adjacent cell to current cell
-        @param cell current cell being processed
-        """
-        adj.g = cell.g + 10
-        adj.h = self.get_heuristic(adj)
-        adj.parent = cell
-        adj.f = adj.h + adj.g
-
-    def process(self):
-        # add starting cell to open heap queue
-        heapq.heappush(self.opened, (self.start.f, self.start))
-        while len(self.opened):
-            # pop cell from heap queue
-            f, cell = heapq.heappop(self.opened)
-            # add cell to closed list so we don't process it twice
-            self.closed.add(cell)
-            debug("Cell: " + str(cell) + " and " + str(cell is self.end))
-            # if ending cell, display found path
-            if cell is self.end:
-                self.display_path()
-                break
-            # get adjacent cells for cell
-            adj_cells = self.get_adjacent_cells(cell)
-            for adj_cell in adj_cells:
-                if adj_cell.reachable and adj_cell not in self.closed:
-                    if (adj_cell.f, adj_cell) in self.opened:
-                        # if adj cell in open list, check if current path is
-                        # better than the one previously found
-                        # for this adj cell.
-                        if adj_cell.g > cell.g + 10:
-                            self.update_cell(adj_cell, cell)
-                    else:
-                        self.update_cell(adj_cell, cell)
-                        # add adj cell to open list
-                        heapq.heappush(self.opened, (adj_cell.f, adj_cell))
-
-''' Custom functions'''
+direction_list = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+direction_list_functions = ["move_north", "move_north_east", "move_east", "move_south_east",
+                            "move_south", "move_south_west", "move_west", "move_north_west"]
 
 
 def debug(string):
     print(string, file=sys.stderr)
 
 
-def find_control_room():
-    return np.where(numpy_map == dictionary["C"])
+def get_random_direction(skip):
+    direction = ""
 
-''' Class definitions '''
+    while direction != skip:
+        rand_index = rand.randint(0, 7)
+        direction = direction_list[rand_index]
+    return direction
 
 
-class Robo(object):
-    init_x = 0
-    init_y = 0
-    x = 0
-    y = 0
-    max_row = 0
-    max_col = 0
-    prev_move = -1
-    next_move = -1
-    control_room_x = -1
-    control_room_y = -1
+def is_giant_around(giant_x, giant_y, thor_obj, min_distance=4):
+    value_x = thor_obj.x - giant_x
+    value_y = thor_obj.y - giant_y
+    giant_direction = ""
 
-    def __init__(self, init_x, init_y, max_row, max_col):
-        self.init_x = self.x = init_x
-        self.init_y = self.y = init_y
-        self.max_col = max_col
-        self.max_row = max_row
+    if value_x < 0:
+        giant_direction = "S" + giant_direction
+    else:
+        giant_direction = "N" + giant_direction
+
+    if value_y < 0:
+        giant_direction = "E" + giant_direction
+    else:
+        giant_direction = "W" + giant_direction
+
+    distance = max(abs(value_x), abs(value_y))
+    return distance, distance < min_distance, giant_direction
+
+
+def is_any_giant_around(the_thor, min_distance):
+    for giant in giants_position:
+        func_return_val = is_giant_around(giant[0], giant[1], the_thor, min_distance)
+        if func_return_val[1]:
+            return True
+    return False
+
+################################################################################
+
+
+class Thor(object):
+    def __init__(self, thor_x, thor_y):
+        self.x = thor_x
+        self.y = thor_y
+        self.direction = "E"
+        self.giants_around = []
 
     def __str__(self):
-        if not self.prev_move < 0:
-            return "direction: " + direction[self.prev_move]
-        return "Not initialized"
+        return "Thor: [" + str(self.x) + "," + str(self.y) + "]"
 
-    def get_next_direction(self):
-        self.next_move = (self.prev_move + 1) % 4
-        return self.next_move
+    def min_distance_giant(self):
+        min_distance = 40
+        for giant_value in self.giants_around:
+            if giant_value[0] < min_distance:
+                min_distance = giant_value[0]
+        return min_distance
 
-    def right(self):
-        is_moved = False
-        if self.y < (self.max_col - 1):
-            if numpy_map[self.x][self.y + 1] == dictionary['#']:
-                is_moved = False
-            else:
-                self.y += 1
-                is_moved = True
-        return is_moved
-
-    def left(self):
-        is_moved = False
+    def move_north(self):
         if self.y > 0:
-            if numpy_map[self.x][self.y - 1] == dictionary['#']:
-                is_moved = False
+            self.y -= 1
+            if is_any_giant_around(self, 2):
+                self.y += 1
+                return False
             else:
-                self.y -= 1
-                is_moved = True
-        return is_moved
+                print("N")
+                return True
+        return False
 
-    def up(self):
-        is_moved = False
-        if self.x > 0:
-            if numpy_map[self.x - 1][self.y] == dictionary['#']:
-                is_moved = False
-            else:
+    def move_north_east(self):
+        if self.y > 0 and self.x < (max_x - 1):
+            self.x += 1
+            self.y -= 1
+            if is_any_giant_around(self, 2):
                 self.x -= 1
-                is_moved = True
-        return is_moved
-
-    def down(self):
-        is_moved = False
-        if self.x < (self.max_row - 1):
-            if numpy_map[self.x + 1][self.y] == dictionary['#']:
-                is_moved = False
+                self.y += 1
+                return False
             else:
+                print("NE")
+                return True
+        return False
+
+    def move_north_west(self):
+        if self.y > 0 and self.x > 0:
+            self.x -= 1
+            self.y -= 1
+            if is_any_giant_around(self, 2):
                 self.x += 1
-                is_moved = True
-        return is_moved
+                self.y += 1
+                return False
+            else:
+                print("NW")
+                return True
+        return False
 
-    def move(self):
-        debug("robo: x and y : " + str(self.x) + " and " +  str(self.y))
-        predicted_move = self.prev_move
-        if predicted_move < 0:
-            predicted_move = self.get_next_direction()
+    def move_east(self):
+        if self.x < (max_x - 1):
+            self.x += 1
+            if is_any_giant_around(self, 2):
+                self.x -= 1
+                return False
+            else:
+                print("E")
+                return True
+        return False
 
-        control_room_coordinates = find_control_room()
+    def move_west(self):
+        if self.x > 0:
+            self.x -= 1
+            if is_any_giant_around(self, 2):
+                self.x += 1
+                return False
+            else:
+                print("W")
+                return True
+        return False
 
-        if len(control_room_coordinates[0]) > 0 and len(control_room_coordinates[1]) > 0:
-            debug("Found Control Room: " + str(control_room_coordinates))
-            self.control_room_x = control_room_coordinates[0][0]
-            self.control_room_y = control_room_coordinates[1][0]
-            debug("Call A* algorithm to find the route")
-            astar = AStar(self.max_row, self.max_col)
-            astar.init_grid(self.x, self.y, self.control_room_x, self.control_room_y)
-            astar.process()
+    def move_south_west(self):
+        if self.y < (max_y - 1) and self.x > 0:
+            self.x -= 1
+            self.y += 1
+            if is_any_giant_around(self, 2):
+                self.x += 1
+                self.y -= 1
+                return False
+            else:
+                print("SW")
+                return True
+        return False
 
-        else:
-            is_moved = getattr(self, direction[predicted_move].lower())()
-            if not is_moved:
-                count = 0
+    def move_south_east(self):
+        if self.y < (max_y - 1) and self.x < (max_x - 1):
+            self.x += 1
+            self.y += 1
+            if is_any_giant_around(self, 2):
+                self.x -= 1
+                self.y -= 1
+                return False
+            else:
+                print("SE")
+                return True
+        return False
 
-                while not is_moved and count < 4:
-                    predicted_move = self.get_next_direction()
-                    is_moved = getattr(self, direction[predicted_move].lower())()
-                    count += 1
+    def move_south(self):
+        if self.y < (max_y - 1):
+            self.y += 1
+            if is_any_giant_around(self, 2):
+                self.y -= 1
+                return False
+            else:
+                print("S")
+                return True
+        return False
 
-            if not is_moved:
-                debug("XXXX---> ERROR No Moves possible")
+    def move(self, main_number_giants_around):
+        can_move = False
+        tries = 0
 
-        debug("Direction Moved: " + direction[predicted_move])
-        print(direction[predicted_move])
+        while not can_move and (tries < len(direction_list_functions)):
+            can_move = getattr(self, direction_list_functions[tries])()
+            debug("" + direction_list_functions[tries] + ": " + str(can_move))
+            tries += 1
+        if not can_move:
+            debug("XXX Problem no more moves possible, is main_number_giants_around: " + str(main_number_giants_around))
+            if main_number_giants_around == 0:
+                print("WAIT")
+            else:
+                if self.min_distance_giant() < 2:
+                    print("STRIKE")
+                else:
+                    print("WAIT")
+###############################################################################
+
 
 # Auto-generated code below aims at helping you parse
 # the standard input according to the problem statement.
 
-# r: number of rows.
-# c: number of columns.
-# a: number of rounds between the time the alarm countdown is activated and the time the alarm goes off.
-r, c, a = [int(i) for i in input().split()]
-numpy_map = np.zeros((r, c))
-robo = Robo(-1, -1, r, c)
+max_x = 40
+max_y = 18
+
+tx, ty = [int(i) for i in input().split()]
+
+thor = Thor(tx, ty)
+
+giants_position = []
+
+debug("tx: " + str(tx) + ", ty: " + str(ty))
 
 # game loop
 while 1:
-    # kr: row where Kirk is located.
-    # kc: column where Kirk is located.
-    kr, kc = [int(i) for i in input().split()]
-    for i in range(r):
-        row = input()  # C of the characters in '#.TC?' (i.e. one line of the ASCII maze).
-        char_list = list(row)
-        debug(str(row))
-        for j in range(len(char_list)):
-            numpy_map[i][j] = int(dictionary[char_list[j]])
+    number_giants_around = 0
 
-    if robo.x < 0 and robo.y < 0:
-        robo_pos = np.where(numpy_map == dictionary["T"])
-        robo.x = robo_pos[0][0]
-        robo.y = robo_pos[1][0]
-    debug("Robots initial position, X: " + str(robo.x) + ", Y: " + str(robo.y))
+    # h: the remaining number of hammer strikes.
+    # n: the number of giants which are still present on the map.
+    h, n = [int(i) for i in input().split()]
+    debug("Number of hits remaining : " + str(h))
+    debug("Number of giants around : " + str(n))
+    debug("Giant's position: ")
+    debug(str(thor))
 
-    robo.move()
+    thor.giants_around = []
+
+    for i in range(n):
+        x, y = [int(j) for j in input().split()]
+        debug("Giant(" + str(i) + ") : " + str(x) + ", " + str(y))
+        return_val = is_giant_around(x, y, thor)
+        debug("is_giant_around : " + str(return_val))
+
+        if return_val[1]:
+            number_giants_around += 1
+            thor.giants_around.append(return_val)
+            giants_position.append((x, y))
+
+    debug("Number of giants around: " + str(number_giants_around))
 
     # Write an action using print
     # To debug: print("Debug messages...", file=sys.stderr)
 
-    # Kirk's next move (UP DOWN LEFT or RIGHT).
-    #print("RIGHT")
+    # The movement or action to be carried out: WAIT STRIKE N NE E SE S SW W or N
+    if n == 1 and number_giants_around == n:
+        debug("coming here 1")
+        print("STRIKE")
+    else:
+        if number_giants_around == n:
+            debug("coming here 2")
+            print("STRIKE")
+        else:
+            thor.move(number_giants_around)
