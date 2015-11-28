@@ -1,241 +1,150 @@
-import random as rand
+import math
 import sys
 
-'''
-Useful Function
-'''
+# Global variables
 
-direction_list = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-direction_list_functions = ["move_north", "move_north_east", "move_east", "move_south_east",
-                            "move_south", "move_south_west", "move_west", "move_north_west"]
+
+list_of_hostage = []
+list_of_zombies = []
+
+# Functions
+
+
+def jump_closer_to_hostage():
+        list_of_hostage.sort(key=lambda hostage: hostage.save_rank)
+        debug("closest : " + str(list_of_hostage[0]))
+        print(str(list_of_hostage[0].x) + " " + str(list_of_hostage[0].y))
+
+
+def jump_closer_to_zombie():
+        list_of_zombies.sort(key=lambda zombie: zombie.distance_from_james[1])
+        debug("closest : " + str(list_of_zombies[0]))
+        print(str(list_of_zombies[0].next_x) + " " + str(list_of_zombies[0].next_y))
+
+
+def get_closest_zombie(hostage):
+    closest_zombie = None
+    distance = sys.maxsize
+    for zombie in list_of_zombies:
+        if zombie.distance_from_hostages[hostage.id][1] < distance:
+            closest_zombie = zombie
+            distance = zombie.distance_from_hostages[hostage.id][1]
+    return closest_zombie
+
+
+def number_zombies_around(is_current_distance, distance):
+    no_zombies = 0
+    for zombie in list_of_zombies:
+        if is_current_distance:
+            if zombie.distance_from_james[0] < distance:
+                no_zombies += 1
+        else:
+            if zombie.distance_from_james[1] < distance:
+                no_zombies += 1
+    return no_zombies
 
 
 def debug(string):
     print(string, file=sys.stderr)
 
 
-def get_random_direction(skip):
-    direction = ""
+def print_move(james_x, james_y):
+    return debug(str(james_x) + " " + str(james_y))
 
-    while direction != skip:
-        rand_index = rand.randint(0, 7)
-        direction = direction_list[rand_index]
-    return direction
+# Classes
 
 
-def is_giant_around(giant_x, giant_y, thor_obj, min_distance=4):
-    value_x = thor_obj.x - giant_x
-    value_y = thor_obj.y - giant_y
-    giant_direction = ""
-
-    if value_x < 0:
-        giant_direction = "S" + giant_direction
-    else:
-        giant_direction = "N" + giant_direction
-
-    if value_y < 0:
-        giant_direction = "E" + giant_direction
-    else:
-        giant_direction = "W" + giant_direction
-
-    distance = max(abs(value_x), abs(value_y))
-    return distance, distance < min_distance, giant_direction
-
-
-def is_any_giant_around(the_thor, min_distance):
-    for giant in giants_position:
-        func_return_val = is_giant_around(giant[0], giant[1], the_thor, min_distance)
-        if func_return_val[1]:
-            return True
-    return False
-
-################################################################################
-
-
-class Thor(object):
-    def __init__(self, thor_x, thor_y):
-        self.x = thor_x
-        self.y = thor_y
-        self.direction = "E"
-        self.giants_around = []
+class Human(object):
+    def __init__(self, humans_id, humans_x, humans_y):
+        self.x = humans_x
+        self.y = humans_y
+        self.id = humans_id
+        self.distance_from_james = -1
+        self.distance_from_closest_zombie = -1
+        self.save_rank = 16000
 
     def __str__(self):
-        return "Thor: [" + str(self.x) + "," + str(self.y) + "]"
+        return "Human id: " + str(self.id) + ", (x,y) : " + str(self.x) + "," + str(self.y) + ", rank: " + str(self.save_rank)
 
-    def min_distance_giant(self):
-        min_distance = 40
-        for giant_value in self.giants_around:
-            if giant_value[0] < min_distance:
-                min_distance = giant_value[0]
-        return min_distance
+    def calculate_move(self, nos_zombies, nos_hostages):
+        nos_zmbs_arnd_james = number_zombies_around(False, 400)
+        if nos_zmbs_arnd_james > (nos_zombies / 2):
+            # print_move(self.x, self.y)
+            print("I am waiting!!!")
+        elif (nos_zombies / nos_hostages) >= 1:
+            jump_closer_to_hostage()
+        else:
+            jump_closer_to_zombie()
 
-    def move_north(self):
-        if self.y > 0:
-            self.y -= 1
-            if is_any_giant_around(self, 2):
-                self.y += 1
-                return False
-            else:
-                print("N")
-                return True
-        return False
+    def calculate_distances(self, mr_james):
+        distance_curr_from_james = math.hypot(mr_james.x - self.x, mr_james.y - self.y)
+        self.distance_from_james = distance_curr_from_james
+        debug("Hostage : " + str(self.id) + " distance to james: " + str(self.distance_from_james))
 
-    def move_north_east(self):
-        if self.y > 0 and self.x < (max_x - 1):
-            self.x += 1
-            self.y -= 1
-            if is_any_giant_around(self, 2):
-                self.x -= 1
-                self.y += 1
-                return False
-            else:
-                print("NE")
-                return True
-        return False
-
-    def move_north_west(self):
-        if self.y > 0 and self.x > 0:
-            self.x -= 1
-            self.y -= 1
-            if is_any_giant_around(self, 2):
-                self.x += 1
-                self.y += 1
-                return False
-            else:
-                print("NW")
-                return True
-        return False
-
-    def move_east(self):
-        if self.x < (max_x - 1):
-            self.x += 1
-            if is_any_giant_around(self, 2):
-                self.x -= 1
-                return False
-            else:
-                print("E")
-                return True
-        return False
-
-    def move_west(self):
-        if self.x > 0:
-            self.x -= 1
-            if is_any_giant_around(self, 2):
-                self.x += 1
-                return False
-            else:
-                print("W")
-                return True
-        return False
-
-    def move_south_west(self):
-        if self.y < (max_y - 1) and self.x > 0:
-            self.x -= 1
-            self.y += 1
-            if is_any_giant_around(self, 2):
-                self.x += 1
-                self.y -= 1
-                return False
-            else:
-                print("SW")
-                return True
-        return False
-
-    def move_south_east(self):
-        if self.y < (max_y - 1) and self.x < (max_x - 1):
-            self.x += 1
-            self.y += 1
-            if is_any_giant_around(self, 2):
-                self.x -= 1
-                self.y -= 1
-                return False
-            else:
-                print("SE")
-                return True
-        return False
-
-    def move_south(self):
-        if self.y < (max_y - 1):
-            self.y += 1
-            if is_any_giant_around(self, 2):
-                self.y -= 1
-                return False
-            else:
-                print("S")
-                return True
-        return False
-
-    def move(self, main_number_giants_around):
-        can_move = False
-        tries = 0
-
-        while not can_move and (tries < len(direction_list_functions)):
-            can_move = getattr(self, direction_list_functions[tries])()
-            debug("" + direction_list_functions[tries] + ": " + str(can_move))
-            tries += 1
-        if not can_move:
-            debug("XXX Problem no more moves possible, is main_number_giants_around: " + str(main_number_giants_around))
-            if main_number_giants_around == 0:
-                print("WAIT")
-            else:
-                if self.min_distance_giant() < 2:
-                    print("STRIKE")
-                else:
-                    print("WAIT")
-###############################################################################
+    def calculate_distance_frm_zombie(self, closest_zombie):
+        distance_from_closest_zombie = math.hypot(closest_zombie.next_x - self.x, closest_zombie.next_y - self.y)
+        self.distance_from_closest_zombie = distance_from_closest_zombie
+        self.save_rank = self.save_rank - self.distance_from_closest_zombie + self.distance_from_james
 
 
-# Auto-generated code below aims at helping you parse
-# the standard input according to the problem statement.
+class Zombie(object):
+    def __init__(self, zombies_id, zombies_x, zombies_y, zombies_next_x, zombies_next_y):
+        self.x = zombies_x
+        self.y = zombies_y
+        self.next_x = zombies_next_x
+        self.next_y = zombies_next_y
+        self.id = zombies_id
+        self.distance_from_hostages = {}
+        self.distance_from_james = (-1, -1)
 
-max_x = 40
-max_y = 18
+    def __str__(self):
+        return "Zombie: id-> " + str(self.id) + " , (x,y) : (" + str(self.x) + "," + str(self.y) + ") and next: (" + str(self.next_x) + "," + str(self.next_y) + ")"
 
-tx, ty = [int(i) for i in input().split()]
+    def calculate_distances(self, mr_james):
+        self.distance_from_hostages = {}
+        debug("Zombie: " + str(self.id))
+        for hostage in list_of_hostage:
+            distance_current = math.hypot(hostage.x - self.x, hostage.y - self.y)
+            distance_next = math.hypot(hostage.x - self.next_x, hostage.y - self.next_y)
+            debug("Hostage: " + str(hostage.id) + " distance_curr: " + str(distance_current) + ", distance_next: " + str(distance_next))
+            self.distance_from_hostages[hostage.id] = (distance_current, distance_next)
 
-thor = Thor(tx, ty)
-
-giants_position = []
-
-debug("tx: " + str(tx) + ", ty: " + str(ty))
+        distance_curr_from_james = math.hypot(mr_james.x - self.x, mr_james.y - self.y)
+        distance_next_from_james = math.hypot(mr_james.x - self.next_x, mr_james.y - self.next_y)
+        self.distance_from_james = (distance_curr_from_james, distance_next_from_james)
+        debug("distance to james: " + str(self.distance_from_james))
+# Save humans, destroy zombies!
 
 # game loop
 while 1:
-    number_giants_around = 0
 
-    # h: the remaining number of hammer strikes.
-    # n: the number of giants which are still present on the map.
-    h, n = [int(i) for i in input().split()]
-    debug("Number of hits remaining : " + str(h))
-    debug("Number of giants around : " + str(n))
-    debug("Giant's position: ")
-    debug(str(thor))
+    list_of_hostage = []
+    list_of_zombies = []
 
-    thor.giants_around = []
+    x, y = [int(i) for i in input().split()]
 
-    for i in range(n):
-        x, y = [int(j) for j in input().split()]
-        debug("Giant(" + str(i) + ") : " + str(x) + ", " + str(y))
-        return_val = is_giant_around(x, y, thor)
-        debug("is_giant_around : " + str(return_val))
+    james_bond = Human("007", x, y)
 
-        if return_val[1]:
-            number_giants_around += 1
-            thor.giants_around.append(return_val)
-            giants_position.append((x, y))
+    human_count = int(input())
 
-    debug("Number of giants around: " + str(number_giants_around))
+    for i in range(human_count):
+        human_id, human_x, human_y = [int(j) for j in input().split()]
+        list_of_hostage.append(Human(human_id, human_x, human_y))
+        list_of_hostage[i].calculate_distances(james_bond)
+
+    zombie_count = int(input())
+    for i in range(zombie_count):
+        zombie_id, zombie_x, zombie_y, zombie_xnext, zombie_ynext = [int(j) for j in input().split()]
+        list_of_zombies.append(Zombie(zombie_id, zombie_x, zombie_y, zombie_xnext, zombie_ynext))
+        list_of_zombies[i].calculate_distances(james_bond)
+
+    for i in range(human_count):
+        list_of_hostage[i].calculate_distance_frm_zombie(get_closest_zombie(list_of_hostage[i]))
+
+    debug("My pos: x: " + str(x) + ", y: " + str(y) + ", human_count: " +  str(human_count) + ", zombies_count: " +  str(zombie_count))
 
     # Write an action using print
     # To debug: print("Debug messages...", file=sys.stderr)
 
-    # The movement or action to be carried out: WAIT STRIKE N NE E SE S SW W or N
-    if n == 1 and number_giants_around == n:
-        debug("coming here 1")
-        print("STRIKE")
-    else:
-        if number_giants_around == n:
-            debug("coming here 2")
-            print("STRIKE")
-        else:
-            thor.move(number_giants_around)
+    # Your destination coordinates
+    james_bond.calculate_move(zombie_count, human_count)
