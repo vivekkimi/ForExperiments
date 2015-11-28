@@ -106,13 +106,13 @@ class Zombie(object):
         for hostage in list_of_hostage:
             distance_current = math.hypot(hostage.x - self.x, hostage.y - self.y)
             distance_next = math.hypot(hostage.x - self.next_x, hostage.y - self.next_y)
-            debug("Hostage: " + str(hostage.id) + " distance_curr: " + str(distance_current) + ", distance_next: " + str(distance_next))
+            # debug("Hostage: " + str(hostage.id) + " distance_curr: " + str(distance_current) + ", distance_next: " + str(distance_next))
             self.distance_from_hostages[hostage.id] = (distance_current, distance_next)
 
         distance_curr_from_james = math.hypot(mr_james.x - self.x, mr_james.y - self.y)
         distance_next_from_james = math.hypot(mr_james.x - self.next_x, mr_james.y - self.next_y)
         self.distance_from_james = (distance_curr_from_james, distance_next_from_james)
-        debug("distance to james: " + str(self.distance_from_james))
+        # debug("distance to james: " + str(self.distance_from_james))
 # Save humans, destroy zombies!
 
 # game loop
